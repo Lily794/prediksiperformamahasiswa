@@ -7,18 +7,18 @@ import torch.nn as nn
 from tensorflow.keras.models import load_model
 from torchdiffeq import odeint
 
-# ======================================================
-# LOAD PREPROCESSOR & MODELS
-# ======================================================
+# ===============================
+# LOAD MODELS & PREPROCESSOR
+# ===============================
 with open("preprocessor.pkl", "rb") as f:
     preprocessor = pickle.load(f)
 
 lstm_model = load_model("lstm_model.keras")
 transformer_model = load_model("transformer_model.keras")
 
-# ======================================================
+# ===============================
 # NEURAL ODE MODEL
-# ======================================================
+# ===============================
 class ODEFunc(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -56,9 +56,9 @@ neural_ode_model.load_state_dict(
 )
 neural_ode_model.eval()
 
-# ======================================================
+# ===============================
 # UI HEADER
-# ======================================================
+# ===============================
 st.title("🎓 Prediksi Performa Belajar Mahasiswa")
 
 st.markdown("""
@@ -66,10 +66,10 @@ Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
 dalam memprediksi status akademik mahasiswa.
 """)
 
-# ======================================================
-# MODEL PERFORMANCE (FROM NOTEBOOK)
-# ======================================================
-st.subheader("📊 Performa Model (Validation Set)")
+# ===============================
+# METRIC (HASIL TRAINING)
+# ===============================
+st.subheader("📊 Performa Model (Validation)")
 
 st.markdown("""
 - **LSTM** → Accuracy: **0.86**, F1-score: **0.85**  
@@ -77,86 +77,77 @@ st.markdown("""
 - **Neural ODE** → Accuracy: **0.83**, F1-score: **0.82**
 """)
 
-# ======================================================
-# MODEL SELECTION
-# ======================================================
+# ===============================
+# MODEL CHOICE
+# ===============================
 model_choice = st.selectbox(
     "Pilih Model",
     ["LSTM", "Transformer", "Neural ODE"]
 )
 
-# ======================================================
-# CATEGORY MAPPINGS (UCI OFFICIAL)
-# ======================================================
+# ===============================
+# CATEGORY MAPPING
+# ===============================
 marital_status = {
     "Single": 1,
     "Married": 2,
     "Widower": 3,
     "Divorced": 4,
-    "Facto union": 5,
-    "Legally separated": 6
+    "Facto Union": 5,
+    "Legally Separated": 6
 }
 
-application_mode = {
-    "1st phase - general contingent": 1,
-    "Ordinance No. 612/93": 2,
-    "1st phase - special contingent (Azores Island)": 5,
-    "Holders of other higher courses": 7,
-    "Ordinance No. 854-B/99": 10,
-    "International student (bachelor)": 15,
-    "1st phase - special contingent (Madeira Island)": 16,
-    "2nd phase - general contingent": 17,
-    "3rd phase - general contingent": 18,
-    "Ordinance No. 533-A/99 (Different Plan)": 26,
-    "Ordinance No. 533-A/99 (Other Institution)": 27,
-    "Over 23 years old": 39,
-    "Transfer": 42,
-    "Change of course": 43,
-    "Technological specialization diploma holders": 44,
-    "Change of institution/course": 51,
-    "Short cycle diploma holders": 53,
-    "Change of institution/course (International)": 57
+daytime = {
+    "Daytime": 1,
+    "Evening": 0
 }
 
-daytime = {"Daytime": 1, "Evening": 0}
-yes_no = {"No": 0, "Yes": 1}
+yes_no = {
+    "No": 0,
+    "Yes": 1
+}
 
-# ======================================================
+# ===============================
 # INPUT FORM
-# ======================================================
+# ===============================
 st.subheader("📝 Data Mahasiswa")
 
 input_data = {}
 
+# Dropdown categorical
 input_data["Marital_status"] = marital_status[
     st.selectbox("Marital Status", marital_status.keys())
-]
-
-input_data["Application_mode"] = application_mode[
-    st.selectbox("Application Mode", application_mode.keys())
 ]
 
 input_data["Daytime_evening_attendance"] = daytime[
     st.selectbox("Attendance", daytime.keys())
 ]
 
-binary_fields = [
-    "Displaced",
-    "Educational_special_needs",
-    "Debtor",
-    "Tuition_fees_up_to_date",
-    "Scholarship_holder",
-    "International"
+input_data["Displaced"] = yes_no[
+    st.selectbox("Displaced", yes_no.keys())
 ]
 
-for field in binary_fields:
-    input_data[field] = yes_no[
-        st.selectbox(field.replace("_", " "), yes_no.keys())
-    ]
+input_data["Educational_special_needs"] = yes_no[
+    st.selectbox("Educational Special Needs", yes_no.keys())
+]
 
-# ======================================================
-# NUMERIC FEATURES
-# ======================================================
+input_data["Debtor"] = yes_no[
+    st.selectbox("Debtor", yes_no.keys())
+]
+
+input_data["Tuition_fees_up_to_date"] = yes_no[
+    st.selectbox("Tuition Fees Up To Date", yes_no.keys())
+]
+
+input_data["Scholarship_holder"] = yes_no[
+    st.selectbox("Scholarship Holder", yes_no.keys())
+]
+
+input_data["International"] = yes_no[
+    st.selectbox("International Student", yes_no.keys())
+]
+
+# Numeric inputs
 numeric_features = [
     col for col in preprocessor.feature_names_in_
     if col not in input_data
@@ -165,21 +156,21 @@ numeric_features = [
 for col in numeric_features:
     input_data[col] = st.number_input(col, value=0.0)
 
-# ======================================================
+# ===============================
 # PREDICTION
-# ======================================================
+# ===============================
 input_df = pd.DataFrame([input_data])
 X_processed = preprocessor.transform(input_df)
 
 if st.button("🔮 Predict"):
     if model_choice == "LSTM":
-        X_model = X_processed.reshape(1, 1, X_processed.shape[1])
-        pred = lstm_model.predict(X_model)
+        X_lstm = X_processed.reshape(1, 1, X_processed.shape[1])
+        pred = lstm_model.predict(X_lstm)
         result = np.argmax(pred)
 
     elif model_choice == "Transformer":
-        X_model = X_processed.reshape(1, 1, X_processed.shape[1])
-        pred = transformer_model.predict(X_model)
+        X_tr = X_processed.reshape(1, 1, X_processed.shape[1])
+        pred = transformer_model.predict(X_tr)
         result = np.argmax(pred)
 
     else:
