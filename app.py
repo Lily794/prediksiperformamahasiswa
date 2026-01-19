@@ -77,6 +77,7 @@ st.markdown(
     """
     Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
     dalam memprediksi status akademik mahasiswa.
+    Marital status = 1 – single 2 – married 3 – widower 4 – divorced 5 – facto union 6 – legally separated
     """
 )
 
@@ -89,8 +90,7 @@ model_choice = st.selectbox(
 # INPUT FORM
 # ===============================
 with st.form("student_form"):
-    st.subheader("🧾 Data Mahasiswa
-    Marital status = 1 – single 2 – married 3 – widower 4 – divorced 5 – facto union 6 – legally separated")
+    st.subheader("🧾 Data Mahasiswa")
 
     input_data = {}
 
