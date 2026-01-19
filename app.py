@@ -8,19 +8,27 @@ from tensorflow.keras.models import load_model
 from torchdiffeq import odeint
 
 # ===============================
+# PAGE CONFIG
+# ===============================
+st.set_page_config(
+    page_title="Prediksi Performa Mahasiswa",
+    layout="centered"
+)
+
+# ===============================
 # LOAD PREPROCESSOR
 # ===============================
 with open("preprocessor.pkl", "rb") as f:
     preprocessor = pickle.load(f)
 
 # ===============================
-# LOAD KERAS MODELS
+# LOAD MODELS
 # ===============================
 lstm_model = load_model("lstm_model.keras")
 transformer_model = load_model("transformer_model.keras")
 
 # ===============================
-# NEURAL ODE DEFINITION
+# NEURAL ODE MODEL
 # ===============================
 class ODEFunc(nn.Module):
     def __init__(self, dim):
@@ -48,11 +56,7 @@ class NeuralODE(nn.Module):
         return self.classifier(out)
 
 
-# ===============================
-# LOAD NEURAL ODE MODEL
-# ===============================
-INPUT_DIM = 36  # jumlah fitur hasil preprocessing
-
+INPUT_DIM = 36  # hasil preprocessing
 neural_ode_model = NeuralODE(INPUT_DIM, 3)
 neural_ode_model.load_state_dict(
     torch.load("neural_ode_model.pt", map_location="cpu")
@@ -60,35 +64,102 @@ neural_ode_model.load_state_dict(
 neural_ode_model.eval()
 
 # ===============================
+# CATEGORY MAPPINGS (UCI DATASET)
+# ===============================
+categorical_mappings = {
+    "Marital_status": {
+        1: "Single",
+        2: "Married",
+        3: "Widower",
+        4: "Divorced",
+        5: "Facto Union",
+        6: "Legally Separated"
+    },
+    "Application_mode": {
+        1: "General Contingent",
+        2: "Ordinance 612/93",
+        5: "Special Contingent (Azores)",
+        7: "Other Higher Course Holder",
+        10: "Ordinance 854-B/99",
+        15: "International Student"
+    },
+    "Course": {
+        33: "Biofuel Production Technologies",
+        171: "Animation and Multimedia Design",
+        8014: "Social Service",
+        9003: "Nursing",
+        9070: "Management"
+    },
+    "Gender": {
+        0: "Female",
+        1: "Male"
+    },
+    "Scholarship_holder": {
+        0: "No",
+        1: "Yes"
+    },
+    "Debtor": {
+        0: "No",
+        1: "Yes"
+    },
+    "Tuition_fees_up_to_date": {
+        0: "No",
+        1: "Yes"
+    }
+}
+
+# ===============================
 # STREAMLIT UI
 # ===============================
-st.title("Prediksi Performa Belajar Mahasiswa")
+st.title("🎓 Prediksi Performa Belajar Mahasiswa")
+st.markdown(
+    """
+    Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
+    untuk memprediksi status akademik mahasiswa.
+    """
+)
 
 model_choice = st.selectbox(
-    "Pilih Model",
+    "🤖 Pilih Model",
     ["LSTM", "Transformer", "Neural ODE"]
 )
 
-st.subheader("Masukkan Data Mahasiswa")
+# ===============================
+# INPUT FORM
+# ===============================
+with st.form("student_form"):
+    st.subheader("🧾 Data Mahasiswa")
 
-# ===============================
-# INPUT USER
-# ===============================
-input_data = {}
-for col in preprocessor.feature_names_in_:
-    input_data[col] = st.number_input(col, value=0.0)
+    input_data = {}
 
-input_df = pd.DataFrame([input_data])
+    for col in preprocessor.feature_names_in_:
+        label = col.replace("_", " ")
 
-# ===============================
-# PREPROCESS INPUT
-# ===============================
-X_processed = preprocessor.transform(input_df)
+        if col in categorical_mappings:
+            mapping = categorical_mappings[col]
+            selected_label = st.selectbox(
+                label,
+                list(mapping.values())
+            )
+            input_data[col] = [
+                k for k, v in mapping.items()
+                if v == selected_label
+            ][0]
+        else:
+            input_data[col] = st.number_input(
+                label,
+                value=0.0
+            )
+
+    submitted = st.form_submit_button("🔮 Predict")
 
 # ===============================
 # PREDICTION
 # ===============================
-if st.button("Predict"):
+if submitted:
+    input_df = pd.DataFrame([input_data])
+    X_processed = preprocessor.transform(input_df)
+
     if model_choice == "LSTM":
         X_lstm = X_processed.reshape(1, 1, X_processed.shape[1])
         pred = lstm_model.predict(X_lstm)
@@ -111,4 +182,4 @@ if st.button("Predict"):
         2: "Graduate"
     }
 
-    st.success(f"Hasil Prediksi: **{label_map[result]}**")
+    st.success(f"📊 Hasil Prediksi: **{label_map[result]}**")
