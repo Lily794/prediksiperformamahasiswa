@@ -77,9 +77,17 @@ st.markdown(
     """
     Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
     dalam memprediksi status akademik mahasiswa.
-    Marital status = 1 – single 2 – married 3 – widower 4 – divorced 5 – facto union 6 – legally separated
+
+    **Keterangan Marital Status:**
+    - 1 : Single
+    - 2 : Married
+    - 3 : Widower
+    - 4 : Divorced
+    - 5 : Facto Union
+    - 6 : Legally Separated
     """
 )
+
 
 model_choice = st.selectbox(
     "🤖 Pilih Model",
