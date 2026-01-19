@@ -66,16 +66,6 @@ Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
 dalam memprediksi status akademik mahasiswa.
 """)
 
-# ===============================
-# METRIC (HASIL TRAINING)
-# ===============================
-st.subheader("📊 Performa Model (Validation)")
-
-st.markdown("""
-- **LSTM** → Accuracy: **0.86**, F1-score: **0.85**  
-- **Transformer** → Accuracy: **0.88**, F1-score: **0.87**  
-- **Neural ODE** → Accuracy: **0.83**, F1-score: **0.82**
-""")
 
 # ===============================
 # MODEL CHOICE
