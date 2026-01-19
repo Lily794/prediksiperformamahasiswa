@@ -7,12 +7,21 @@ import torch.nn as nn
 from tensorflow.keras.models import load_model
 from torchdiffeq import odeint
 
+# ===============================
+# LOAD PREPROCESSOR
+# ===============================
 with open("preprocessor.pkl", "rb") as f:
     preprocessor = pickle.load(f)
 
+# ===============================
+# LOAD KERAS MODELS
+# ===============================
 lstm_model = load_model("lstm_model.keras")
 transformer_model = load_model("transformer_model.keras")
 
+# ===============================
+# NEURAL ODE DEFINITION
+# ===============================
 class ODEFunc(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -24,6 +33,7 @@ class ODEFunc(nn.Module):
 
     def forward(self, t, x):
         return self.net(x)
+
 
 class NeuralODE(nn.Module):
     def __init__(self, input_dim, num_classes):
@@ -37,9 +47,11 @@ class NeuralODE(nn.Module):
         out = out[-1]
         return self.classifier(out)
 
-INPUT_DIM = preprocessor.transform(
-    pd.DataFrame([preprocessor.feature_names_in_])
-).shape[1]
+
+# ===============================
+# LOAD NEURAL ODE MODEL
+# ===============================
+INPUT_DIM = 36  # jumlah fitur hasil preprocessing
 
 neural_ode_model = NeuralODE(INPUT_DIM, 3)
 neural_ode_model.load_state_dict(
@@ -47,6 +59,9 @@ neural_ode_model.load_state_dict(
 )
 neural_ode_model.eval()
 
+# ===============================
+# STREAMLIT UI
+# ===============================
 st.title("Prediksi Performa Belajar Mahasiswa")
 
 model_choice = st.selectbox(
@@ -54,17 +69,25 @@ model_choice = st.selectbox(
     ["LSTM", "Transformer", "Neural ODE"]
 )
 
-input_data = {}
-
 st.subheader("Masukkan Data Mahasiswa")
 
+# ===============================
+# INPUT USER
+# ===============================
+input_data = {}
 for col in preprocessor.feature_names_in_:
     input_data[col] = st.number_input(col, value=0.0)
 
 input_df = pd.DataFrame([input_data])
 
+# ===============================
+# PREPROCESS INPUT
+# ===============================
 X_processed = preprocessor.transform(input_df)
 
+# ===============================
+# PREDICTION
+# ===============================
 if st.button("Predict"):
     if model_choice == "LSTM":
         X_lstm = X_processed.reshape(1, 1, X_processed.shape[1])
@@ -82,10 +105,10 @@ if st.button("Predict"):
             outputs = neural_ode_model(X_torch)
             result = torch.argmax(outputs, dim=1).item()
 
-label_map = {
-    0: "Dropout",
-    1: "Enrolled",
-    2: "Graduate"
-}
+    label_map = {
+        0: "Dropout",
+        1: "Enrolled",
+        2: "Graduate"
+    }
 
-st.success(f"Hasil Prediksi: **{label_map[result]}**")
+    st.success(f"Hasil Prediksi: **{label_map[result]}**")
