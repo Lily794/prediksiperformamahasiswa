@@ -16,13 +16,19 @@ st.set_page_config(
 )
 
 # ===============================
-# LOAD PREPROCESSOR
+# LOAD PREPROCESSOR & SCHEMA
 # ===============================
 with open("preprocessor.pkl", "rb") as f:
     preprocessor = pickle.load(f)
 
+with open("schema.pkl", "rb") as f:
+    schema = pickle.load(f)
+
+categorical_columns = schema["categorical_columns"]
+categorical_mappings = schema["categorical_mappings"]
+
 # ===============================
-# LOAD MODELS
+# LOAD KERAS MODELS
 # ===============================
 lstm_model = load_model("lstm_model.keras")
 transformer_model = load_model("transformer_model.keras")
@@ -64,58 +70,13 @@ neural_ode_model.load_state_dict(
 neural_ode_model.eval()
 
 # ===============================
-# CATEGORY MAPPINGS (UCI DATASET)
-# ===============================
-categorical_mappings = {
-    "Marital_status": {
-        1: "Single",
-        2: "Married",
-        3: "Widower",
-        4: "Divorced",
-        5: "Facto Union",
-        6: "Legally Separated"
-    },
-    "Application_mode": {
-        1: "General Contingent",
-        2: "Ordinance 612/93",
-        5: "Special Contingent (Azores)",
-        7: "Other Higher Course Holder",
-        10: "Ordinance 854-B/99",
-        15: "International Student"
-    },
-    "Course": {
-        33: "Biofuel Production Technologies",
-        171: "Animation and Multimedia Design",
-        8014: "Social Service",
-        9003: "Nursing",
-        9070: "Management"
-    },
-    "Gender": {
-        0: "Female",
-        1: "Male"
-    },
-    "Scholarship_holder": {
-        0: "No",
-        1: "Yes"
-    },
-    "Debtor": {
-        0: "No",
-        1: "Yes"
-    },
-    "Tuition_fees_up_to_date": {
-        0: "No",
-        1: "Yes"
-    }
-}
-
-# ===============================
 # STREAMLIT UI
 # ===============================
 st.title("🎓 Prediksi Performa Belajar Mahasiswa")
 st.markdown(
     """
     Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
-    untuk memprediksi status akademik mahasiswa.
+    dalam memprediksi status akademik mahasiswa.
     """
 )
 
@@ -135,12 +96,13 @@ with st.form("student_form"):
     for col in preprocessor.feature_names_in_:
         label = col.replace("_", " ")
 
-        if col in categorical_mappings:
+        if col in categorical_columns:
             mapping = categorical_mappings[col]
             selected_label = st.selectbox(
                 label,
                 list(mapping.values())
             )
+            # convert label -> original numeric code
             input_data[col] = [
                 k for k, v in mapping.items()
                 if v == selected_label
