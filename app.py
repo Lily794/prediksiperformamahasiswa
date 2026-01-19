@@ -7,12 +7,26 @@ import torch.nn as nn
 from tensorflow.keras.models import load_model
 from torchdiffeq import odeint
 
+st.set_page_config(
+    page_title="Prediksi Performa Mahasiswa",
+    layout="centered"
+)
+
 # ===============================
-# LOAD MODELS & PREPROCESSOR
+# LOAD PREPROCESSOR & SCHEMA
 # ===============================
 with open("preprocessor.pkl", "rb") as f:
     preprocessor = pickle.load(f)
 
+with open("schema.pkl", "rb") as f:
+    schema = pickle.load(f)
+
+categorical_columns = schema["categorical_columns"]
+categorical_mappings = schema["categorical_mappings"]
+
+# ===============================
+# LOAD KERAS MODELS
+# ===============================
 lstm_model = load_model("lstm_model.keras")
 transformer_model = load_model("transformer_model.keras")
 
@@ -31,6 +45,7 @@ class ODEFunc(nn.Module):
     def forward(self, t, x):
         return self.net(x)
 
+
 class NeuralODE(nn.Module):
     def __init__(self, input_dim, num_classes):
         super().__init__()
@@ -43,13 +58,8 @@ class NeuralODE(nn.Module):
         out = out[-1]
         return self.classifier(out)
 
-INPUT_DIM = preprocessor.transform(
-    pd.DataFrame(
-        [np.zeros(len(preprocessor.feature_names_in_))],
-        columns=preprocessor.feature_names_in_
-    )
-).shape[1]
 
+INPUT_DIM = 36  # hasil preprocessing
 neural_ode_model = NeuralODE(INPUT_DIM, 3)
 neural_ode_model.load_state_dict(
     torch.load("neural_ode_model.pt", map_location="cpu")
@@ -57,111 +67,85 @@ neural_ode_model.load_state_dict(
 neural_ode_model.eval()
 
 # ===============================
-# UI HEADER
+# STREAMLIT UI
 # ===============================
 st.title("🎓 Prediksi Performa Belajar Mahasiswa")
+st.markdown(
+    """
+    Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
+    dalam memprediksi status akademik mahasiswa.
 
-st.markdown("""
-Aplikasi ini membandingkan **LSTM, Transformer, dan Neural ODE**
-dalam memprediksi status akademik mahasiswa.
-""")
+    Marital Status: 1 – single 2 – married 3 – widower 4 – divorced 5 – facto union 6 – legally separated
+
+    Application Mode: 1 - 1st phase - general contingent 2 - Ordinance No. 612/93 5 - 1st phase - special contingent (Azores Island) 7 - Holders of other higher courses 10 - Ordinance No. 854-B/99 15 - International student (bachelor) 16 - 1st phase - special contingent (Madeira Island) 17 - 2nd phase - general contingent 18 - 3rd phase - general contingent 26 - Ordinance No. 533-A/99, item b2) (Different Plan) 27 - Ordinance No. 533-A/99, item b3 (Other Institution) 39 - Over 23 years old 42 - Transfer 43 - Change of course 44 - Technological specialization diploma holders 51 - Change of institution/course 53 - Short cycle diploma holders 57 - Change of institution/course (International)
+    
+    Daytime/evening attendance: 1 – daytime 0 - evening
+
+    Previous qualification: 1 - Secondary education 2 - Higher education - bachelor's degree 3 - Higher education - degree 4 - Higher education - master's 5 - Higher education - doctorate 6 - Frequency of higher education 9 - 12th year of schooling - not completed 10 - 11th year of schooling - not completed 12 - Other - 11th year of schooling 14 - 10th year of schooling 15 - 10th year of schooling - not completed 19 - Basic education 3rd cycle (9th/10th/11th year) or equiv. 38 - Basic education 2nd cycle (6th/7th/8th year) or equiv. 39 - Technological specialization course 40 - Higher education - degree (1st cycle) 42 - Professional higher technical course 43 - Higher education - master (2nd cycle)
+
+    Nacionality: 1 - Portuguese; 2 - German; 6 - Spanish; 11 - Italian; 13 - Dutch; 14 - English; 17 - Lithuanian; 21 - Angolan; 22 - Cape Verdean; 24 - Guinean; 25 - Mozambican; 26 - Santomean; 32 - Turkish; 41 - Brazilian; 62 - Romanian; 100 - Moldova (Republic of); 101 - Mexican; 103 - Ukrainian; 105 - Russian; 108 - Cuban; 109 - Colombian
+
+    Mother/Father's qualifications: 1 - Secondary Education - 12th Year of Schooling or Eq. 2 - Higher Education - Bachelor's Degree 3 - Higher Education - Degree 4 - Higher Education - Master's 5 - Higher Education - Doctorate 6 - Frequency of Higher Education 9 - 12th Year of Schooling - Not Completed 10 - 11th Year of Schooling - Not Completed 11 - 7th Year (Old) 12 - Other - 11th Year of Schooling 14 - 10th Year of Schooling 18 - General commerce course 19 - Basic Education 3rd Cycle (9th/10th/11th Year) or Equiv. 22 - Technical-professional course 26 - 7th year of schooling 27 - 2nd cycle of the general high school course 29 - 9th Year of Schooling - Not Completed 30 - 8th year of schooling 34 - Unknown 35 - Can't read or write 36 - Can read without having a 4th year of schooling 37 - Basic education 1st cycle (4th/5th year) or equiv. 38 - Basic Education 2nd Cycle (6th/7th/8th Year) or Equiv. 39 - Technological specialization course 40 - Higher education - degree (1st cycle) 41 - Specialized higher studies course 42 - Professional higher technical course 43 - Higher Education - Master (2nd cycle) 44 - Higher Education - Doctorate (3rd cycle)
+
+    Mother/Father's occupations: 0 - Student 1 - Representatives of the Legislative Power and Executive Bodies, Directors, Directors and Executive Managers 2 - Specialists in Intellectual and Scientific Activities 3 - Intermediate Level Technicians and Professions 4 - Administrative staff 5 - Personal Services, Security and Safety Workers and Sellers 6 - Farmers and Skilled Workers in Agriculture, Fisheries and Forestry 7 - Skilled Workers in Industry, Construction and Craftsmen 8 - Installation and Machine Operators and Assembly Workers 9 - Unskilled Workers 10 - Armed Forces Professions 90 - Other Situation 99 - (blank) 122 - Health professionals 123 - teachers 125 - Specialists in information and communication technologies (ICT) 131 - Intermediate level science and engineering technicians and professions 132 - Technicians and professionals, of intermediate level of health 134 - Intermediate level technicians from legal, social, sports, cultural and similar services 141 - Office workers, secretaries in general and data processing operators 143 - Data, accounting, statistical, financial services and registry-related operators 144 - Other administrative support staff 151 - personal service workers 152 - sellers 153 - Personal care workers and the like 171 - Skilled construction workers and the like, except electricians 173 - Skilled workers in printing, precision instrument manufacturing, jewelers, artisans and the like 175 - Workers in food processing, woodworking, clothing and other industries and crafts 191 - cleaning workers 192 - Unskilled workers in agriculture, animal production, fisheries and forestry 193 - Unskilled workers in extractive industry, construction, manufacturing and transport 194 - Meal preparation assistants
+
+    Displaced, Educational special needs, Debtor, Tuition fees up to date, Scholarship holder, International: 1 – yes 0 – no
+
+    """
+)
 
 
-# ===============================
-# MODEL CHOICE
-# ===============================
 model_choice = st.selectbox(
-    "Pilih Model",
+    "🤖 Pilih Model",
     ["LSTM", "Transformer", "Neural ODE"]
 )
 
 # ===============================
-# CATEGORY MAPPING
-# ===============================
-marital_status = {
-    "Single": 1,
-    "Married": 2,
-    "Widower": 3,
-    "Divorced": 4,
-    "Facto Union": 5,
-    "Legally Separated": 6
-}
-
-daytime = {
-    "Daytime": 1,
-    "Evening": 0
-}
-
-yes_no = {
-    "No": 0,
-    "Yes": 1
-}
-
-# ===============================
 # INPUT FORM
 # ===============================
-st.subheader("📝 Data Mahasiswa")
+with st.form("student_form"):
+    st.subheader("🧾 Data Mahasiswa")
 
-input_data = {}
+    input_data = {}
 
-# Dropdown categorical
-input_data["Marital_status"] = marital_status[
-    st.selectbox("Marital Status", marital_status.keys())
-]
+    for col in preprocessor.feature_names_in_:
+        label = col.replace("_", " ")
 
-input_data["Daytime_evening_attendance"] = daytime[
-    st.selectbox("Attendance", daytime.keys())
-]
+        if col in categorical_columns:
+            mapping = categorical_mappings[col]
+            selected_label = st.selectbox(
+                label,
+                list(mapping.values())
+            )
+            # convert label -> original numeric code
+            input_data[col] = [
+                k for k, v in mapping.items()
+                if v == selected_label
+            ][0]
+        else:
+            input_data[col] = st.number_input(
+                label,
+                value=0.0
+            )
 
-input_data["Displaced"] = yes_no[
-    st.selectbox("Displaced", yes_no.keys())
-]
-
-input_data["Educational_special_needs"] = yes_no[
-    st.selectbox("Educational Special Needs", yes_no.keys())
-]
-
-input_data["Debtor"] = yes_no[
-    st.selectbox("Debtor", yes_no.keys())
-]
-
-input_data["Tuition_fees_up_to_date"] = yes_no[
-    st.selectbox("Tuition Fees Up To Date", yes_no.keys())
-]
-
-input_data["Scholarship_holder"] = yes_no[
-    st.selectbox("Scholarship Holder", yes_no.keys())
-]
-
-input_data["International"] = yes_no[
-    st.selectbox("International Student", yes_no.keys())
-]
-
-# Numeric inputs
-numeric_features = [
-    col for col in preprocessor.feature_names_in_
-    if col not in input_data
-]
-
-for col in numeric_features:
-    input_data[col] = st.number_input(col, value=0.0)
+    submitted = st.form_submit_button("🔮 Predict")
 
 # ===============================
 # PREDICTION
 # ===============================
-input_df = pd.DataFrame([input_data])
-X_processed = preprocessor.transform(input_df)
+if submitted:
+    input_df = pd.DataFrame([input_data])
+    X_processed = preprocessor.transform(input_df)
 
-if st.button("🔮 Predict"):
     if model_choice == "LSTM":
         X_lstm = X_processed.reshape(1, 1, X_processed.shape[1])
         pred = lstm_model.predict(X_lstm)
-        result = np.argmax(pred)
+        result = np.argmax(pred, axis=1)[0]
 
     elif model_choice == "Transformer":
         X_tr = X_processed.reshape(1, 1, X_processed.shape[1])
         pred = transformer_model.predict(X_tr)
-        result = np.argmax(pred)
+        result = np.argmax(pred, axis=1)[0]
 
     else:
         X_torch = torch.tensor(X_processed, dtype=torch.float32)
@@ -175,4 +159,4 @@ if st.button("🔮 Predict"):
         2: "Graduate"
     }
 
-    st.success(f"🎯 Hasil Prediksi: **{label_map[result]}**")
+    st.success(f"📊 Hasil Prediksi: **{label_map[result]}**")
